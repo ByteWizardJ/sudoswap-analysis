@@ -2,6 +2,8 @@
 
 ## sudoswap 阶段一：OTC
 
+[https://otc.sudoswap.xyz](https://otc.sudoswap.xyz)
+
 sudoswap自定义的点对点交易形式是一种灵活交易订单，支持选择指定对手方地址和到期日，然后点击「create swap」即可生成一个交易链接，当你把这个链接分享给你的交易对手时，对方可以通过链接进入交易。当然对方也可以链接自己的钱包到sudoswap后在平台内看到这笔交易。简单来说就是一种场外交易的形式。提供订单撮合的功能。
 
 特点：
@@ -86,9 +88,11 @@ bytes[] 是一个字节数组，表示的是每种 asset 的具体信息。一�
 
 ##### 2. 判断 0xv2 上的交易是否是 sudoswap OTC 交易主要通过 feeRecipientAddress 是否是 [0x4e2f98c96e2d595a83AFa35888C4af58Ac343E44](https://etherscan.io/address/0x4e2f98c96e2d595a83AFa35888C4af58Ac343E44)
 
-找了很久没有发现 0x 上的 api没有能区分 sudoswap 的地方，后来根据一个叫[0xtracker](https://0xtracker.com/search?q=0x4e2f98c96e2d595a83AFa35888C4af58Ac343E44)的项目发现他们是根据 feeRecipientAddress 来确认跟踪的项目的。可以借鉴一下。
+找了很久没有发现 0x 上的 api没有能区分 sudoswap 的地方，后来根据一个叫 [0xtracker](https://0xtracker.com/search?q=0x4e2f98c96e2d595a83AFa35888C4af58Ac343E44) 的项目发现他们是根据 feeRecipientAddress 来确认跟踪的项目的。可以借鉴一下。
 
 ## sudoswap 阶段二：AMM
+
+[https://sudoswap.xyz](https://sudoswap.xyz)
 
 Sudoswap 是 NFT 的 AMM 协议，这意味着用户从流动性池中购买或出售，而不是直接在他们之间进行交易。如果您熟悉 Uniswap，这是一个类似的概念，但适用于 NFT。
 
