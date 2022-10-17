@@ -237,6 +237,69 @@ LSSVMPair 合约提供的方法中，涉及到流动性的方法大致可以分�
 指数曲线与线性曲线的运行逻辑相同，但delta的递增和递减将以%的形式计算。
 
 
+### 如何获取某个 NFT 的所有交易
+
+#### 1. 监听 [LSSVMPairFactory: 0xb16c1342E617A5B6E4b631EB114483FDB289c0A4](https://etherscan.io/address/0xb16c1342E617A5B6E4b631EB114483FDB289c0A4) 
+
+监听 LSSVMPairFactory 的 NewPair 事件。
+
+poolAddress 就是交易对合约的地址。
+
+```
+    event NewPair(address poolAddress);
+```
+
+#### 2. 解析 NewPair 对应交易的 input data
+
+NewPair 事件是由 createPairETH() 函数触发的。
+
+```
+function createPairETH(
+        IERC721 _nft, // nft 的地址
+        ICurve _bondingCurve, // 做市商曲线函数
+        address payable _assetRecipient, // 交易手续费的接受者
+        LSSVMPair.PoolType _poolType, // 交易对的类型 TOKEN, NFT, or TRADE
+        uint128 _delta, // 做市商曲线需要的数据
+        uint96 _fee, // 费用
+        uint128 _spotPrice, // 初始销售现货价格
+        uint256[] calldata _initialNFTIDs // 创建交易对的时候需要转入的 NFT
+    )
+```
+
+#### 3. 根据 nft 地址，将交易对合约进行分组。
+
+#### 4. 监听某个交易对合约的 SwapNFTInPair 事件。
+
+交易对合约里涉及到交易的事件有两个
+
+```
+event SwapNFTInPair(); // nft 进入池子时候会发出的事件，代表某个用户将 nft 卖出
+event SwapNFTOutPair(); // nft 离开池子，代表某个用户买入 nft 
+```
+
+我们需要监听 SwapNFTInPair 事件。
+
+#### 5. 解析 SwapNFTInPair 对应交易的 input data
+
+在 交易对合约 LSSVMPair 中，SwapNFTInPair() 是由 swapNFTsForToken 函数来触发的。
+
+```
+function swapNFTsForToken(
+        uint256[] calldata nftIds,
+        uint256 minExpectedTokenOutput,
+        address payable tokenRecipient,
+        bool isRouter,
+        address routerCaller
+    ) 
+```
+
+但是，一般不推荐直接调用 交易对合约 LSSVMPair。而是用 路由合约 LSSVMRouter2 来选择调用 交易对合约 LSSVMPair 中的方法。
+
+[LSSVMRouter: 0x2b2e8cda09bba9660dca5cb6233787738ad68329](https://etherscan.io/address/0x2b2e8cda09bba9660dca5cb6233787738ad68329)
+
+#### 6. 
+
+
 ### 如何获取某个 NFT 的所有流动池
 
 #### 1. 监听 LSSVMPairFactory 合约的 NewPair 事件
