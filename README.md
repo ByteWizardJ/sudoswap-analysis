@@ -7,46 +7,41 @@
 sudoswap自定义的点对点交易形式是一种灵活交易订单，支持选择指定对手方地址和到期日，然后点击「create swap」即可生成一个交易链接，当你把这个链接分享给你的交易对手时，对方可以通过链接进入交易。当然对方也可以链接自己的钱包到sudoswap后在平台内看到这笔交易。简单来说就是一种场外交易的形式。提供订单撮合的功能。
 
 特点：
-1. 基于 0x v2 协议构建
+1. 基于 0x v2 协议构建（[0x080bf510fcbf18b91105470639e9561022937712](https://etherscan.io/address/0x080bf510fcbf18b91105470639e9561022937712)）
 2. 自定义的点对点交易形式
 3. 支持 ERC20、ERC721、ERC1155 等代币任意组合的交易
 4. 无交易手续费和版税
 
 ### 解析
 
-0x 协议使用链下订单中继和链上结算的方法。在这种方法中，加密签名的订单通过任意通信渠道从区块链广播出去；感兴趣的交易对手可以将这些订单中的一个或多个注入到 0x 协议的Exchange合约中，以直接在区块链上执行和结算交易。
+0x 协议的 v2 版本，跟 opensea 的 seaport 协议一样，是中央订单簿的交易模型。都是由链下的中心化的订单簿和链上的交易组成。
 
-例子
+其中链下的订单簿负责存储用户的挂单信息，并对订单进行撮合。最终的成交和转移 NFT 是由 Seaport Protocol 来负责的。
 
-https://etherscan.io/tx/0x1e1b1d187d8125c4554171a42feb132957377ea3afe4c4253f29de3022bcdbf5
+#### order
 
-#### 1. 调用 fillOrder 方法进行成单
-
-`Function: fillOrder(tuple order,uint256 takerAssetFillAmount,bytes signature)`
-
-#### 2. 成单后发出 Fill 事件
+其中订单在合约中的对应下面的结构：
 
 ```
-event Fill(
-        address indexed makerAddress,         // Address that created the order.      
-        address indexed feeRecipientAddress,  // Address that received fees.
-        address takerAddress,                 // Address that filled the order.
-        address senderAddress,                // Address that called the Exchange contract (msg.sender).
-        uint256 makerAssetFilledAmount,       // Amount of makerAsset sold by maker and bought by taker. 
-        uint256 takerAssetFilledAmount,       // Amount of takerAsset sold by taker and bought by maker.
-        uint256 makerFeePaid,                 // Amount of ZRX paid to feeRecipient by maker.
-        uint256 takerFeePaid,                 // Amount of ZRX paid to feeRecipient by taker.
-        bytes32 indexed orderHash,            // EIP712 hash of order (see LibOrder.getOrderHash).
-        bytes makerAssetData,                 // Encoded data specific to makerAsset. 
-        bytes takerAssetData                  // Encoded data specific to takerAsset.
-    );
+struct Order {
+        address makerAddress;           // Address that created the order.      
+        address takerAddress;           // Address that is allowed to fill the order. If set to 0, any address is allowed to fill the order.          
+        address feeRecipientAddress;    // Address that will recieve fees when order is filled.      
+        address senderAddress;          // Address that is allowed to call Exchange contract methods that affect this order. If set to 0, any address is allowed to call these methods.
+        uint256 makerAssetAmount;       // Amount of makerAsset being offered by maker. Must be greater than 0.        
+        uint256 takerAssetAmount;       // Amount of takerAsset being bid on by maker. Must be greater than 0.        
+        uint256 makerFee;               // Amount of ZRX paid to feeRecipient by maker when order is filled. If set to 0, no transfer of ZRX from maker to feeRecipient will be attempted.
+        uint256 takerFee;               // Amount of ZRX paid to feeRecipient by taker when order is filled. If set to 0, no transfer of ZRX from taker to feeRecipient will be attempted.
+        uint256 expirationTimeSeconds;  // Timestamp in seconds at which order expires.          
+        uint256 salt;                   // Arbitrary number to facilitate uniqueness of the order's hash.     
+        bytes makerAssetData;           // Encoded data that can be decoded by a specified proxy contract when transferring makerAsset. The last byte references the id of this proxy.
+        bytes takerAssetData;           // Encoded data that can be decoded by a specified proxy contract when transferring takerAsset. The last byte references the id of this proxy.
+    }
 ```
 
-#### 3. 需要注意的两点：
+##### makerAssetData 和 takerAssetData 
 
-##### 1. 具体买卖信息要从 makerAssetData 和 takerAssetData 中获取。
-
-这两个参数都是 bytes 类型，需要对其进行解码。
+这两个参数都是 bytes 类型，获取具体信息需要对其进行解码。
 
 在 0xv2 中 assetData 根据类型的不同分成三种
 
@@ -85,6 +80,82 @@ MultiAsset(uint256[],bytes[])
 uint256[] 是一个整数数组，表示的是每种 asset 的数量。
 
 bytes[] 是一个字节数组，表示的是每种 asset 的具体信息。一般存放的是 ERC20 的 assetData 或者 ERC721 的 assetData。
+
+#### [AssetProxy](https://github.com/0xProject/0x-protocol-specification/blob/master/v2/v2-specification.md#assetproxy)
+
+AssetProxy 是几种代理合约。用户在挂单的时候，需要将 token 授权给这些代理合约。然后在成单的时候由这些代理合约复制 token 的转移。
+
+结算过程
+
+![](0x_v2_trade_erc20_erc721.png)
+
+1. Exchange.fillOrder(order, value)
+2. ERC721Proxy.transferFrom(assetData, from, to, value)
+3. ERC721Token(assetData.address).transferFrom(from, to, assetData.tokenId)
+4. ERC721Token: (revert on failure)
+5. ERC721Proxy: (revert on failure)
+6. ERC20Proxy.transferFrom(assetData, from, to, value)
+7. ERC20Token(assetData.address).transferFrom(from, to, value)
+8. ERC20Token: (revert on failure)
+9. ERC20Proxy: (revert on failure)
+10. Exchange: (return FillResults)
+
+#### 订单成交
+
+与 seaport 类似，订单成交方法分为两类 Filling orders 和 matchOrders
+
+其中 Filling orders 类型的方法，将一个订单进行成交。所有的 方法最终都会调用 `fillOrderInternal() `。
+
+最后会发出 `Fill` 的事件。
+
+```
+function fillOrderInternal(
+        Order memory order,
+        uint256 takerAssetFillAmount,
+        bytes memory signature
+    )
+```
+
+matchOrders 类型的方法只有一个，是尝试将两个订单进行撮合成交。每个订单都会触发一个 `Fill` 的事件。
+
+```
+function matchOrders(
+        LibOrder.Order memory leftOrder,
+        LibOrder.Order memory rightOrder,
+        bytes memory leftSignature,
+        bytes memory rightSignature
+    )
+```
+
+### 例子
+
+https://etherscan.io/tx/0x1e1b1d187d8125c4554171a42feb132957377ea3afe4c4253f29de3022bcdbf5
+
+#### 1. 调用 fillOrder 方法进行成单
+
+`Function: fillOrder(tuple order,uint256 takerAssetFillAmount,bytes signature)`
+
+#### 2. 成单后发出 Fill 事件
+
+```
+event Fill(
+        address indexed makerAddress,         // Address that created the order.      
+        address indexed feeRecipientAddress,  // Address that received fees.
+        address takerAddress,                 // Address that filled the order.
+        address senderAddress,                // Address that called the Exchange contract (msg.sender).
+        uint256 makerAssetFilledAmount,       // Amount of makerAsset sold by maker and bought by taker. 
+        uint256 takerAssetFilledAmount,       // Amount of takerAsset sold by taker and bought by maker.
+        uint256 makerFeePaid,                 // Amount of ZRX paid to feeRecipient by maker.
+        uint256 takerFeePaid,                 // Amount of ZRX paid to feeRecipient by taker.
+        bytes32 indexed orderHash,            // EIP712 hash of order (see LibOrder.getOrderHash).
+        bytes makerAssetData,                 // Encoded data specific to makerAsset. 
+        bytes takerAssetData                  // Encoded data specific to takerAsset.
+    );
+```
+
+#### 3. 需要注意的两点：
+
+##### 1. 具体买卖信息要从 makerAssetData 和 takerAssetData 中获取。
 
 ##### 2. 判断 0xv2 上的交易是否是 sudoswap OTC 交易主要通过 feeRecipientAddress 是否是 [0x4e2f98c96e2d595a83AFa35888C4af58Ac343E44](https://etherscan.io/address/0x4e2f98c96e2d595a83AFa35888C4af58Ac343E44)
 
