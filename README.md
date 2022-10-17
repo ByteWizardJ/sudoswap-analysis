@@ -297,7 +297,13 @@ function swapNFTsForToken(
 
 [LSSVMRouter: 0x2b2e8cda09bba9660dca5cb6233787738ad68329](https://etherscan.io/address/0x2b2e8cda09bba9660dca5cb6233787738ad68329)
 
-#### 6. 
+#### 6. LSSVMRouter 
+
+LSSVMRouter 中大概会有 6 个方法会调用 `pair.swapNFTsForToken()`。
+
+查找该交易所有的事件可以查出来具体交换的 nft ，但是没法获取具体的价格。
+
+https://etherscan.io/tx/0x96dfc9a469b7fd9747db9e487f459510afafd4a633b7f2fa9beec831c28c1079
 
 
 ### 如何获取某个 NFT 的所有流动池
