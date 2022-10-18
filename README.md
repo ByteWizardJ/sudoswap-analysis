@@ -261,7 +261,7 @@ function createPairETH(
         LSSVMPair.PoolType _poolType, // 交易对的类型 TOKEN, NFT, or TRADE
         uint128 _delta, // 做市商曲线需要的数据
         uint96 _fee, // 费用
-        uint128 _spotPrice, // 初始销售现货价格
+        uint128 _spotPrice, // 该交易对卖出 1 NFT的瞬时价格
         uint256[] calldata _initialNFTIDs // 创建交易对的时候需要转入的 NFT
     )
 ```
@@ -293,7 +293,7 @@ function swapNFTsForToken(
     ) 
 ```
 
-但是，一般不推荐直接调用 交易对合约 LSSVMPair。而是用 路由合约 LSSVMRouter2 来选择调用 交易对合约 LSSVMPair 中的方法。
+但是，一般不推荐直接调用 交易对合约 LSSVMPair。而是用 路由合约 LSSVMRouter 来选择调用 交易对合约 LSSVMPair 中的方法。
 
 [LSSVMRouter: 0x2b2e8cda09bba9660dca5cb6233787738ad68329](https://etherscan.io/address/0x2b2e8cda09bba9660dca5cb6233787738ad68329)
 
