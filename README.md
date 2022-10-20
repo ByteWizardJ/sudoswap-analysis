@@ -563,7 +563,7 @@ Defined 类似一个对 the Graph 的封装。
 https://api.defined.fi/
 ```
 
-```json
+```
 {           
     getNftEvents(
         poolAddress: "0x16f71d593bc6446a16ef84551cf8d76ff5973db1", 
