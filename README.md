@@ -312,15 +312,108 @@ NFT 与 token 进行交换的时候，有两种交换的类型。
 
 然后，路由器将在指定的各种对之间进行交换。在所有交换结束时，路由器将汇总所有要接收或发送的令牌，如果总数超出用户指定的滑点，则恢复。
 
+对应的方法有：
+
+1. swapETHForAnyNFTs
+2. swapETHForSpecificNFTs
+3. swapERC20ForAnyNFTs
+4. swapERC20ForSpecificNFTs
+5. swapNFTsForToken
+
+这些方法都需要传入一个 `swapList` 参数。
+
+```solidity
+    PairSwapSpecific[] calldata swapList, // 方法1, 2
+    struct PairSwapAny {
+        LSSVMPair pair;
+        uint256 numItems;
+    }
+    
+    PairSwapSpecific[] calldata swapList, // 方法3, 4, 5
+    struct PairSwapSpecific {
+        LSSVMPair pair;
+        uint256[] nftIds;
+    }
+```
+
+可以看出来 `swapList` 实际上是一个 Pair 数组。在调用这些方法的时候可以传入多个 Pair 。也就是说一次交易可以在多个 pair 中买卖。
+
 ###### 稳健（Robust）交换
 
 稳健互换对每个交换对进行滑点检查，而不是在最后进行汇总检查。如果指定交易对的价格超过了允许的滑点，路由器将默默地跳过该路线并继续下一条路线，没有恢复或错误。
 
 这适用于价格在您的交易提交和执行之间快速变动的情况。通常建议使用稳健（Robust）交换，以便在波动性较高的环境中获得更好的用户体验，但代价是稍微多一些 gas。
 
+1. robustSwapETHForAnyNFTs
+2. robustSwapETHForSpecificNFTs
+3. robustSwapERC20ForAnyNFTs
+4. robustSwapERC20ForSpecificNFTs
+5. robustSwapNFTsForToken
+
+这些方法也都需要传入一个 `swapList` 参数。
+
+```
+    RobustPairSwapAny[] calldata swapList, // 方法1, 2
+    struct RobustPairSwapAny {
+        PairSwapAny swapInfo;
+        uint256 maxCost;
+    }
+
+    RobustPairSwapSpecific[] calldata swapList, // 方法3, 4
+    struct RobustPairSwapSpecific {
+        PairSwapSpecific swapInfo;
+        uint256 maxCost;
+    }
+
+    RobustPairSwapSpecificForToken[] calldata swapList, // 方法5
+    struct RobustPairSwapSpecificForToken {
+        PairSwapSpecific swapInfo;
+        uint256 minOutput;
+    }
+```
+
+相比普通交换的 `swapList` 参数，多了一个 maxCost 属性。也是可以对多个 pair 进行买卖。
+
 ##### NFT<>NFT 
 
 这种交易方式是将 NFT 换成代币，然后在一次交易中将代币换成其他 NFT。用户可以从一对中指定特定的 NFT ID，也可以要求任何 NFT ID。
+
+1. swapNFTsForAnyNFTsThroughETH
+2. swapNFTsForSpecificNFTsThroughETH
+3. swapNFTsForAnyNFTsThroughERC20
+4. swapNFTsForSpecificNFTsThroughERC20
+5. robustSwapETHForSpecificNFTsAndNFTsToToken
+6. robustSwapERC20ForSpecificNFTsAndNFTsToToken
+
+这些方法中也有指定 pair 的参数。不同于 NFT<>Token 的交换。这些参数需要指定两个数组。一个数组是 NFT<>Token 的 pair 数组，一个是 Token<>NFT 的 pair 数组。也就是说 NFT<>NFT 之间的交换需要一个中间物品。
+
+```solidity
+    // 方法1, 2
+    NFTsForAnyNFTsTrade calldata trade,
+    struct NFTsForAnyNFTsTrade {
+        PairSwapSpecific[] nftToTokenTrades;
+        PairSwapAny[] tokenToNFTTrades;
+    }
+
+    // 方法3, 4
+    NFTsForSpecificNFTsTrade calldata trade,
+    struct NFTsForSpecificNFTsTrade {
+        PairSwapSpecific[] nftToTokenTrades;
+        PairSwapSpecific[] tokenToNFTTrades;
+    }
+
+    // 方法5, 6
+    RobustPairNFTsFoTokenAndTokenforNFTsTrade calldata params
+    struct RobustPairNFTsFoTokenAndTokenforNFTsTrade {
+        RobustPairSwapSpecific[] tokenToNFTTrades;
+        RobustPairSwapSpecificForToken[] nftToTokenTrades;
+        uint256 inputAmount;
+        address payable tokenRecipient;
+        address nftRecipient;
+    }
+```
+
+从这里我们可以看出来 LSSVMRouter 与 Uniswap 中的路由组件不同。它最多支持两个层级的交换。一个层级的 pair 将 NFT 转换成 Token， 另一个层级的 pair 将 Token 转换为 NFT。不过每一个层级可以有多个 pair。
 
 #### Bonding Curve
 
